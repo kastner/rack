@@ -1,13 +1,14 @@
 # Rakefile for Rack.  -*-ruby-*-
 require 'rake/rdoctask'
 require 'rake/testtask'
+require 'yaml'
 
 
 desc "Run all the tests"
 task :default => [:test]
 
 desc "Do predistribution stuff"
-task :predist => [:chmod, :changelog, :rdoc]
+task :predist => [:chmod, :changelog, :rdoc, :gemspec]
 
 
 desc "Make an archive as .tar.gz"
@@ -15,6 +16,11 @@ task :dist => [:fulltest, :predist] do
   sh "git archive --format=tar --prefix=#{release}/ HEAD^{tree} >#{release}.tar"
   sh "pax -waf #{release}.tar -s ':^:#{release}/:' RDOX SPEC ChangeLog doc"
   sh "gzip -f -9 #{release}.tar"
+end
+
+desc "Make the gemspec"
+task :gemspec do
+  open("rack.gemspec", "w") {|f| f.print @spec.to_ruby }
 end
 
 # Helper to retrieve the "revision number" of the git tree.
@@ -105,7 +111,7 @@ begin
 rescue LoadError
   # Too bad.
 else
-  spec = Gem::Specification.new do |s|
+  @spec = Gem::Specification.new do |s|
     s.name            = "rack"
     s.version         = gem_version
     s.platform        = Gem::Platform::RUBY
@@ -121,12 +127,12 @@ middleware) into a single method call.
 Also see http://rack.rubyforge.org.
     EOF
 
-    s.files           = manifest + %w(SPEC RDOX)
+    s.files           = manifest
     s.bindir          = 'bin'
     s.executables     << 'rackup'
     s.require_path    = 'lib'
     s.has_rdoc        = true
-    s.extra_rdoc_files = ['README', 'SPEC', 'RDOX', 'KNOWN-ISSUES']
+    s.extra_rdoc_files = ['README', 'KNOWN-ISSUES']
     s.test_files      = Dir['test/{test,spec}_*.rb']
 
     s.author          = 'Christian Neukirchen'
@@ -135,8 +141,8 @@ Also see http://rack.rubyforge.org.
     s.rubyforge_project = 'rack'
   end
 
-  Rake::GemPackageTask.new(spec) do |p|
-    p.gem_spec = spec
+  Rake::GemPackageTask.new(@spec) do |p|
+    p.gem_spec = @spec
     p.need_tar = false
     p.need_zip = false
   end
